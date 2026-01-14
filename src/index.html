@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Server Stats</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* Scrollbar personalizada */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #00ff88, #00d4ff); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #00ff99, #00e5ff); }
+        * { scrollbar-width: thin; scrollbar-color: #00ff88 rgba(0, 0, 0, 0.3); }
+        
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0d0d 0%, #1a1a2e 50%, #0d0d0d 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        .nav-bar {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .nav-link {
+            color: #888;
+            text-decoration: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        .nav-link:hover {
+            color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+            border-color: rgba(0, 255, 136, 0.3);
+        }
+        .nav-link.active {
+            color: #00ff88;
+            background: rgba(0, 255, 136, 0.15);
+            border-color: #00ff88;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 15px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #00ff88, #00d4ff, #ff00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle { color: #888; font-size: 1rem; }
+        
+        .online-bar {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .online-bar.empty {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .online-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+            animation: pulse 2s infinite;
+        }
+        
+        .online-bar.empty .online-dot {
+            background: #555;
+            box-shadow: none;
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .online-text { font-weight: 600; color: #00ff88; }
+        .online-bar.empty .online-text { color: #666; }
+        
+        .online-players {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .player-tag {
+            background: rgba(0, 255, 136, 0.2);
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            color: #fff;
+        }
+        
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            color: #00ff88;
+            margin-bottom: 20px;
+        }
+        
+        .records-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        
+        .record-card {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 212, 255, 0.1));
+            border-radius: 10px;
+            padding: 15px 20px;
+            border-left: 4px solid #00ff88;
+            transition: transform 0.2s;
+        }
+        
+        .record-card:hover { transform: translateX(5px); }
+        .record-label { font-size: 0.85rem; color: #888; margin-bottom: 5px; }
+        .record-value { font-size: 1.1rem; color: #fff; }
+        .record-value .name { color: #00ff88; font-weight: bold; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        
+        th {
+            background: linear-gradient(90deg, rgba(0, 255, 136, 0.2), rgba(0, 212, 255, 0.2));
+            padding: 15px 10px;
+            text-align: left;
+            color: #00ff88;
+            border-bottom: 2px solid #00ff88;
+        }
+        
+        td {
+            padding: 12px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        tr:hover:not(.empty-row) { background: rgba(0, 255, 136, 0.05); }
+        
+        .rank { font-weight: bold; color: #00d4ff; }
+        .rank-1 { color: #ffd700; }
+        .rank-2 { color: #c0c0c0; }
+        .rank-3 { color: #cd7f32; }
+        .player-name { font-weight: 600; color: #fff; }
+        .player-name.online { color: #00ff88; }
+        .stat-value { color: #aaa; }
+        
+        .empty-row td { color: #444; text-align: center; }
+        
+        .clickable {
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .clickable:hover {
+            color: #00d4ff !important;
+            text-decoration: underline;
+        }
+        
+        /* Paginacion */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .pagination button {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            color: #00ff88;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        
+        .pagination button:hover:not(:disabled) {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00ff88;
+        }
+        
+        .pagination button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        
+        .pagination .page-info {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 15vh 20px 20px 20px;
+        }
+        
+        .modal-overlay.active { display: flex; }
+        
+        .modal {
+            background: linear-gradient(135deg, #0d0d0d, #1a1a2e);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 15px;
+            width: 100%;
+            max-width: 600px;
+            max-height: 78vh; display: flex; flex-direction: column;
+            overflow: hidden;
+            animation: modalIn 0.2s ease-out;
+        }
+        
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        .modal-header { flex-shrink: 0;
+            padding: 25px;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.2);
+            position: relative;
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 28px;
+            cursor: pointer;
+            transition: color 0.2s;
+            line-height: 1;
+        }
+        
+        .modal-close:hover { color: #ff6b6b; }
+        
+        .player-title {
+            font-size: 1.8rem;
+            color: #00ff88;
+            margin-bottom: 5px;
+        }
+        
+        .player-subtitle {
+            color: #888;
+            font-size: 0.95rem;
+        }
+        
+        .stats-summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .stat-box {
+            background: rgba(0, 255, 136, 0.1);
+            border-radius: 8px;
+            padding: 12px 8px;
+            text-align: center;
+        }
+        
+        .stat-box-value {
+            font-size: 1.2rem;
+            color: #fff;
+            font-weight: bold;
+        }
+        
+        .stat-box-label {
+            font-size: 0.7rem;
+            color: #888;
+            margin-top: 3px;
+        }
+        
+        .modal-tabs { flex-shrink: 0;
+            display: flex;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.2);
+            overflow-x: auto;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        .modal-tab {
+            padding: 14px 18px;
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .modal-tab:hover { color: #00ff88; }
+        
+        .modal-tab.active {
+            color: #00ff88;
+            border-bottom-color: #00ff88;
+            background: rgba(0, 255, 136, 0.05);
+        }
+        
+        .tab-content { display: none; padding: 20px 25px; flex: 1; overflow-y: auto; min-height: 0; }
+        .tab-content.active { display: block; }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .stat-row:last-child { border-bottom: none; }
+        
+        .stat-label { color: #888; }
+        .stat-value-modal { color: #fff; font-weight: 500; }
+        
+        .section-subtitle {
+            color: #00d4ff;
+            font-size: 0.85rem;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+        }
+        
+        .top-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(0, 255, 136, 0.05);
+            margin-bottom: 6px;
+            border-radius: 6px;
+        }
+        
+        .top-item-rank {
+            color: #00d4ff;
+            width: 25px;
+            font-weight: bold;
+        }
+        
+        .top-item-name {
+            color: #fff;
+            flex: 1;
+            text-transform: capitalize;
+        }
+        
+        .top-item-value {
+            color: #00ff88;
+            font-weight: 500;
+        }
+        
+        .no-data {
+            color: #555;
+            font-style: italic;
+            padding: 10px 0;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .update-time { color: #00ff88; }
+        .loading, .error { text-align: center; padding: 50px; }
+        .error { color: #ff6b6b; }
+        
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8rem; }
+            .section { padding: 15px; }
+            th, td { padding: 8px 5px; font-size: 0.85rem; }
+            .hide-mobile { display: none; }
+            .nav-link { padding: 10px 15px; font-size: 0.9rem; }
+            .stats-summary { grid-template-columns: repeat(2, 1fr); }
+            .modal-tab { padding: 12px 14px; font-size: 0.8rem; }
+            .player-title { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="nav-bar">
+            <a href="/" class="nav-link active">Estadisticas</a>
+            <a href="/map/" class="nav-link">Mapa 3D</a>
+        </nav>
+        
+        <header>
+            <h1>MINECRAFT SERVER STATS</h1>
+            <p class="subtitle">Estadisticas en tiempo real</p>
+        </header>
+        
+        <div id="online-status"></div>
+        <div id="content"><div class="loading">Cargando estadísticas...</div></div>
+        
+        <footer>
+            <p>Última actualización: <span id="update-time" class="update-time">-</span></p>
+            <p style="margin-top: 10px;">Auto-refresh cada 5 minutos</p>
+        </footer>
+    </div>
+    
+    <!-- Modal de Perfil -->
+    <div class="modal-overlay" id="playerModal">
+        <div class="modal">
+            <div class="modal-header">
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+                <div class="player-title" id="modalPlayerName">-</div>
+                <div class="player-subtitle" id="modalPlayerSubtitle">-</div>
+                <div class="stats-summary" id="modalStatsSummary"></div>
+            </div>
+            <div class="modal-tabs" id="modalTabs">
+                <button class="modal-tab active" data-tab="general">General</button>
+                <button class="modal-tab" data-tab="combat">Combate</button>
+                <button class="modal-tab" data-tab="travel">Viajes</button>
+                <button class="modal-tab" data-tab="mining">Minería</button>
+                <button class="modal-tab" data-tab="deaths">Muertes</button>
+            </div>
+            <div class="tab-content active" id="tab-general"></div>
+            <div class="tab-content" id="tab-combat"></div>
+            <div class="tab-content" id="tab-travel"></div>
+            <div class="tab-content" id="tab-mining"></div>
+            <div class="tab-content" id="tab-deaths"></div>
+        </div>
+    </div>
+    
+    <script>
+        let onlinePlayers = [];
+        let allPlayers = [];
+        let currentPage = 1;
+        const playersPerPage = 10;
+        
+        async function loadStats() {
+            try {
+                const response = await fetch("stats.json?" + Date.now());
+                if (!response.ok) throw new Error("No se pudo cargar");
+                const data = await response.json();
+                onlinePlayers = data.online_players || [];
+                allPlayers = data.players || [];
+                renderOnlineStatus(data);
+                renderStats(data);
+            } catch (error) {
+                document.getElementById("content").innerHTML = 
+                    "<div class=\"error\">Error cargando estadísticas. Reintentando...</div>";
+                setTimeout(loadStats, 5000);
+            }
+        }
+        
+        function renderOnlineStatus(data) {
+            const count = data.online_count || 0;
+            const players = data.online_players || [];
+            const isEmpty = count === 0;
+            
+            let html = "<div class=\"online-bar" + (isEmpty ? " empty" : "") + "\">";
+            html += "<div class=\"online-dot\"></div>";
+            
+            if (isEmpty) {
+                html += "<span class=\"online-text\">Servidor vacio</span>";
+            } else {
+                html += "<span class=\"online-text\">" + count + " jugador" + (count > 1 ? "es" : "") + " online</span>";
+                html += "<div class=\"online-players\">";
+                players.forEach(p => {
+                    html += "<span class=\"player-tag\">" + p + "</span>";
+                });
+                html += "</div>";
+            }
+            
+            html += "</div>";
+            document.getElementById("online-status").innerHTML = html;
+        }
+        
+        function changePage(delta) {
+            const totalPages = Math.ceil(allPlayers.length / playersPerPage);
+            currentPage = Math.max(1, Math.min(totalPages, currentPage + delta));
+            renderStats({ 
+                players: allPlayers, 
+                total_players: allPlayers.length,
+                records: window.lastRecords,
+                updated: document.getElementById("update-time").textContent
+            });
+        }
+        
+        function renderStats(data) {
+            document.getElementById("update-time").textContent = data.updated;
+            window.lastRecords = data.records;
+            
+            const totalPlayers = data.players.length;
+            const totalPages = Math.ceil(totalPlayers / playersPerPage);
+            const startIndex = (currentPage - 1) * playersPerPage;
+            const endIndex = Math.min(startIndex + playersPerPage, totalPlayers);
+            const playersToShow = data.players.slice(startIndex, endIndex);
+            
+            let html = "";
+            
+            if (data.records && Object.keys(data.records).length > 0) {
+                html += "<div class=\"section\">";
+                html += "<h2 class=\"section-title\">RECORDS DEL SERVIDOR</h2>";
+                html += "<div class=\"records-grid\">";
+                
+                const recordLabels = {
+                    most_hours: "Mas horas jugadas",
+                    most_blocks: "Mas bloques minados",
+                    most_mobs: "Mas mobs eliminados",
+                    most_deaths: "Mas muertes",
+                    best_kd: "Mejor ratio K/D",
+                    most_distance: "Mayor distancia recorrida"
+                };
+                
+                for (const [key, record] of Object.entries(data.records)) {
+                    html += "<div class=\"record-card\">";
+                    html += "<div class=\"record-label\">" + (recordLabels[key] || key) + "</div>";
+                    html += "<div class=\"record-value\"><span class=\"name\">" + record.name + "</span> - " + record.value + "</div>";
+                    html += "</div>";
+                }
+                
+                html += "</div></div>";
+            }
+            
+            html += "<div class=\"section\">";
+            html += "<h2 class=\"section-title\">RANKING DE JUGADORES (" + totalPlayers + ")</h2>";
+            html += "<div style=\"overflow-x: auto;\"><table><thead><tr>";
+            html += "<th>#</th><th>Jugador</th><th>Horas</th><th>Mobs</th>";
+            html += "<th class=\"hide-mobile\">Bloques</th><th>Muertes</th><th class=\"hide-mobile\">K/D</th>";
+            html += "</tr></thead><tbody>";
+            
+            playersToShow.forEach((player, index) => {
+                const globalIndex = startIndex + index;
+                const rankClass = globalIndex < 3 ? " rank-" + (globalIndex + 1) : "";
+                const isOnline = onlinePlayers.includes(player.name);
+                const nameClass = "player-name" + (isOnline ? " online" : "");
+                
+                html += "<tr>";
+                html += "<td class=\"rank" + rankClass + "\">" + (globalIndex + 1) + "</td>";
+                html += "<td class=\"" + nameClass + " clickable\" onclick=\"openPlayerModal('" + player.name + "')\">" + player.name + (isOnline ? " *" : "") + "</td>";
+                html += "<td class=\"stat-value\">" + player.play_time_hours + "h</td>";
+                html += "<td class=\"stat-value\">" + player.mob_kills.toLocaleString() + "</td>";
+                html += "<td class=\"stat-value hide-mobile\">" + player.blocks_mined.toLocaleString() + "</td>";
+                html += "<td class=\"stat-value\">" + player.deaths + "</td>";
+                html += "<td class=\"stat-value hide-mobile\">" + player.kd_ratio + "</td>";
+                html += "</tr>";
+            });
+            
+            if (totalPlayers > playersPerPage) {
+                const emptyRows = playersPerPage - playersToShow.length;
+                for (let i = 0; i < emptyRows; i++) {
+                    html += "<tr class=\"empty-row\">";
+                    html += "<td>-</td><td>-</td><td>-</td><td>-</td>";
+                    html += "<td class=\"hide-mobile\">-</td><td>-</td><td class=\"hide-mobile\">-</td>";
+                    html += "</tr>";
+                }
+            }
+            
+            html += "</tbody></table></div>";
+            
+            if (totalPlayers > playersPerPage) {
+                html += "<div class=\"pagination\">";
+                html += "<button onclick=\"changePage(-1)\"" + (currentPage === 1 ? " disabled" : "") + ">Anterior</button>";
+                html += "<span class=\"page-info\">Pagina " + currentPage + " de " + totalPages + "</span>";
+                html += "<button onclick=\"changePage(1)\"" + (currentPage === totalPages ? " disabled" : "") + ">Siguiente</button>";
+                html += "</div>";
+            }
+            
+            html += "</div>";
+            document.getElementById("content").innerHTML = html;
+        }
+        
+        // ========== MODAL FUNCTIONS ==========
+        
+        function openPlayerModal(playerName) {
+            const player = allPlayers.find(p => p.name === playerName);
+            if (!player) return;
+            
+            // Header
+            document.getElementById("modalPlayerName").textContent = player.name;
+            const isOnline = onlinePlayers.includes(player.name);
+            const rank = allPlayers.indexOf(player) + 1;
+            document.getElementById("modalPlayerSubtitle").innerHTML = 
+                "Rank #" + rank + " · " + player.play_time_hours + "h jugadas" +
+                (isOnline ? " <span style=\"color:#00ff88\">● Online</span>" : "");
+            
+            // Stats summary
+            document.getElementById("modalStatsSummary").innerHTML = 
+                "<div class=\"stat-box\"><div class=\"stat-box-value\">" + player.mob_kills.toLocaleString() + "</div><div class=\"stat-box-label\">Mobs</div></div>" +
+                "<div class=\"stat-box\"><div class=\"stat-box-value\">" + player.blocks_mined.toLocaleString() + "</div><div class=\"stat-box-label\">Bloques</div></div>" +
+                "<div class=\"stat-box\"><div class=\"stat-box-value\">" + player.deaths + "</div><div class=\"stat-box-label\">Muertes</div></div>" +
+                "<div class=\"stat-box\"><div class=\"stat-box-value\">" + player.kd_ratio + "</div><div class=\"stat-box-label\">K/D</div></div>";
+            
+            // Render all tabs
+            renderGeneralTab(player);
+            renderCombatTab(player);
+            renderTravelTab(player);
+            renderMiningTab(player);
+            renderDeathsTab(player);
+            
+            // Reset to first tab
+            document.querySelectorAll(".modal-tab").forEach((t, i) => {
+                t.classList.toggle("active", i === 0);
+            });
+            document.querySelectorAll(".tab-content").forEach((c, i) => {
+                c.classList.toggle("active", i === 0);
+            });
+            
+            // Show modal
+            document.getElementById("playerModal").classList.add("active");
+            document.body.style.overflow = "hidden";
+        }
+        
+        function closeModal() {
+            document.getElementById("playerModal").classList.remove("active");
+            document.body.style.overflow = "";
+        }
+        
+        function renderGeneralTab(player) {
+            document.getElementById("tab-general").innerHTML = 
+                "<div class=\"stat-row\"><span class=\"stat-label\">Tiempo jugado</span><span class=\"stat-value-modal\">" + player.play_time_hours + " horas</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">Veces conectado</span><span class=\"stat-value-modal\">" + (player.leave_game || 0).toLocaleString() + "</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">Veces dormido</span><span class=\"stat-value-modal\">" + (player.sleep_in_bed || 0).toLocaleString() + "</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">Saltos totales</span><span class=\"stat-value-modal\">" + (player.jump || 0).toLocaleString() + "</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">Animales criados</span><span class=\"stat-value-modal\">" + (player.animals_bred || 0).toLocaleString() + "</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">Items crafteados</span><span class=\"stat-value-modal\">" + (player.items_crafted || 0).toLocaleString() + "</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">Cofres abiertos</span><span class=\"stat-value-modal\">" + (player.open_chest || 0).toLocaleString() + "</span></div>";
+        }
+        
+        function renderCombatTab(player) {
+            let html = 
+                "<div class=\"stat-row\"><span class=\"stat-label\">Daño infligido</span><span class=\"stat-value-modal\">" + (player.damage_dealt || 0).toLocaleString() + "</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">Daño recibido</span><span class=\"stat-value-modal\">" + (player.damage_taken || 0).toLocaleString() + "</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">Daño bloqueado</span><span class=\"stat-value-modal\">" + (player.damage_blocked || 0).toLocaleString() + "</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">Kills PvP</span><span class=\"stat-value-modal\">" + (player.player_kills || 0) + "</span></div>";
+            
+            if (player.top_mobs_killed && player.top_mobs_killed.length > 0) {
+                html += "<div class=\"section-subtitle\">Top Mobs Eliminados</div>";
+                player.top_mobs_killed.forEach((mob, i) => {
+                    html += "<div class=\"top-item\"><span class=\"top-item-rank\">" + (i + 1) + ".</span><span class=\"top-item-name\">" + mob.name.replace(/_/g, " ") + "</span><span class=\"top-item-value\">" + mob.value.toLocaleString() + "</span></div>";
+                });
+            }
+            
+            document.getElementById("tab-combat").innerHTML = html;
+        }
+        
+        function renderTravelTab(player) {
+            document.getElementById("tab-travel").innerHTML = 
+                "<div class=\"stat-row\"><span class=\"stat-label\">Distancia total</span><span class=\"stat-value-modal\">" + (player.distance_km || 0) + " km</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">Caminando</span><span class=\"stat-value-modal\">" + (player.walk_km || 0) + " km</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">Corriendo</span><span class=\"stat-value-modal\">" + (player.sprint_km || 0) + " km</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">En el aire</span><span class=\"stat-value-modal\">" + (player.fly_km || 0) + " km</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">A caballo</span><span class=\"stat-value-modal\">" + (player.horse_km || 0) + " km</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">En barco</span><span class=\"stat-value-modal\">" + (player.boat_km || 0) + " km</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">Nadando</span><span class=\"stat-value-modal\">" + (player.swim_km || 0) + " km</span></div>";
+        }
+        
+        function renderMiningTab(player) {
+            let html = 
+                "<div class=\"stat-row\"><span class=\"stat-label\">Bloques minados</span><span class=\"stat-value-modal\">" + (player.blocks_mined || 0).toLocaleString() + "</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">Herramientas rotas</span><span class=\"stat-value-modal\">" + (player.tools_broken || 0).toLocaleString() + "</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">Intercambios con aldeanos</span><span class=\"stat-value-modal\">" + (player.villager_trades || 0).toLocaleString() + "</span></div>";
+            
+            if (player.top_blocks_mined && player.top_blocks_mined.length > 0) {
+                html += "<div class=\"section-subtitle\">Top Bloques Minados</div>";
+                player.top_blocks_mined.forEach((block, i) => {
+                    html += "<div class=\"top-item\"><span class=\"top-item-rank\">" + (i + 1) + ".</span><span class=\"top-item-name\">" + block.name.replace(/_/g, " ") + "</span><span class=\"top-item-value\">" + block.value.toLocaleString() + "</span></div>";
+                });
+            }
+            
+            document.getElementById("tab-mining").innerHTML = html;
+        }
+        
+        function renderDeathsTab(player) {
+            let html = 
+                "<div class=\"stat-row\"><span class=\"stat-label\">Muertes totales</span><span class=\"stat-value-modal\">" + (player.deaths || 0) + "</span></div>" +
+                "<div class=\"stat-row\"><span class=\"stat-label\">Tiempo desde última muerte</span><span class=\"stat-value-modal\">" + (player.time_since_death_hours || 0) + " horas</span></div>";
+            
+            if (player.death_causes && player.death_causes.length > 0) {
+                html += "<div class=\"section-subtitle\">Causas de Muerte</div>";
+                player.death_causes.forEach((cause, i) => {
+                    html += "<div class=\"top-item\"><span class=\"top-item-rank\">" + (i + 1) + ".</span><span class=\"top-item-name\">" + cause.name.replace(/_/g, " ") + "</span><span class=\"top-item-value\">" + cause.value + " veces</span></div>";
+                });
+            } else {
+                html += "<div class=\"no-data\">Sin datos de causas de muerte</div>";
+            }
+            
+            document.getElementById("tab-deaths").innerHTML = html;
+        }
+        
+        // Tab switching
+        document.getElementById("modalTabs").addEventListener("click", function(e) {
+            if (e.target.classList.contains("modal-tab")) {
+                document.querySelectorAll(".modal-tab").forEach(t => t.classList.remove("active"));
+                document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+                e.target.classList.add("active");
+                document.getElementById("tab-" + e.target.dataset.tab).classList.add("active");
+            }
+        });
+        
+        // Close on overlay click
+        document.getElementById("playerModal").addEventListener("click", function(e) {
+            if (e.target.id === "playerModal") closeModal();
+        });
+        
+        // Close on Escape
+        document.addEventListener("keydown", function(e) {
+            if (e.key === "Escape") closeModal();
+        });
+        
+        loadStats();
+        setInterval(loadStats, 300000);
+    </script>
+</body>
+</html>

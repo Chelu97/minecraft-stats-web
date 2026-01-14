@@ -1,0 +1,20 @@
+# Datos descargados (cambian constantemente, no versionar)
+data/stats.json
+
+# Archivos temporales de prueba local
+src/stats.json
+
+# Backups
+*.backup
+*.pre-deploy
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
